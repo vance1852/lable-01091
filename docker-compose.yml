@@ -1,0 +1,65 @@
+services:
+  # OpenSearch - 比 ES 更轻量，API 兼容
+  elasticsearch:
+    image: opensearchproject/opensearch:2.11.0
+    container_name: es-demo-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - plugins.security.disabled=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms256m -Xmx256m"
+      - cluster.name=es-demo-cluster
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+    volumes:
+      - es-data:/usr/share/opensearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - es-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/ || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  # OpenSearch Dashboards（可选）
+  dashboards:
+    image: opensearchproject/opensearch-dashboards:2.11.0
+    container_name: es-demo-dashboards
+    profiles:
+      - dashboards
+    environment:
+      - OPENSEARCH_HOSTS=http://elasticsearch:9200
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
+    ports:
+      - "5601:5601"
+    networks:
+      - es-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  # C++ 演示程序
+  cpp-demo:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: es-demo-cpp
+    environment:
+      - ES_HOST=elasticsearch
+      - ES_PORT=9200
+    networks:
+      - es-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    stdin_open: true
+    tty: true
+
+networks:
+  es-network:
+    driver: bridge
+
+volumes:
+  es-data:
+    driver: local
