@@ -94,7 +94,16 @@ make
 - ✅ 高亮显示
 - ✅ 分页查询
 
-> 💡 本 Demo 使用 ES 内置的 `standard` 分词器。如需中文分词，可安装 IK 分词器插件并修改索引 mapping。
+### 分词说明
+
+本 Demo 使用 Elasticsearch 内置的 `standard` 分词器。`standard` 分词器对中文采用单字切分（Unigram），例如"人工智能"会被切分为"人"、"工"、"智"、"能"四个 token。
+
+如需真正的中文词语切分（如将"人工智能"作为一个完整词语），需要：
+
+1. 安装 [IK 分词器插件](https://github.com/medcl/elasticsearch-analysis-ik)
+2. 修改索引 mapping 中的 `analyzer` 为 `ik_max_word`（最细粒度）或 `ik_smart`（智能切分）
+
+示例配置见下方"扩展开发"章节。
 
 ## 技术栈
 
@@ -173,17 +182,17 @@ make
 
 ## 扩展开发
 
-### 添加新的搜索功能
+### 启用中文分词（IK 分词器）
 
-```cpp
-// 在 es_client.hpp 中添加新方法
-SearchResult fuzzySearch(const std::string& index,
-                         const std::string& field,
-                         const std::string& value,
-                         int fuzziness = 2);
+如需真正的中文分词能力，可以使用带 IK 分词器的 Elasticsearch 镜像：
+
+```yaml
+# docker-compose.yml 中替换 elasticsearch 镜像
+elasticsearch:
+  image: elasticsearch-ik:8.11.0 # 需自行构建或使用社区镜像
 ```
 
-### 自定义索引 Mapping
+然后修改索引 mapping：
 
 ```cpp
 json mapping = {
@@ -195,6 +204,16 @@ json mapping = {
     }}
 };
 client.createIndex("my_index", mapping);
+```
+
+### 添加新的搜索功能
+
+```cpp
+// 在 es_client.hpp 中添加新方法
+SearchResult fuzzySearch(const std::string& index,
+                         const std::string& field,
+                         const std::string& value,
+                         int fuzziness = 2);
 ```
 
 ## License

@@ -125,6 +125,8 @@ void demoCreateIndex(ESClient& client, const std::string& indexName) {
     }
     
     // 定义索引映射
+    // 注：使用 standard 分词器，对中文按单字切分
+    // 如需真正的中文分词，需安装 IK 分词器插件，并将 analyzer 改为 "ik_max_word" 或 "ik_smart"
     json mappings = {
         {"properties", {
             {"title", {
