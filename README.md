@@ -10,23 +10,31 @@
 # 1. 启动所有服务
 docker-compose up --build -d
 
-# 2. 等待 Elasticsearch 启动完成（约 30 秒）
-docker-compose logs -f elasticsearch
+# 2. 查看 C++ 演示程序输出
+docker logs es-demo-cpp
 
-# 3. 运行 C++ 演示程序
-docker-compose run --rm cpp-demo
-
-# 4. 停止服务
+# 3. 停止服务
 docker-compose down
+
+# 4. （可选）启用 Kibana 可视化界面
+docker-compose --profile kibana up -d
 ```
 
 ### 方式二：本地编译运行
 
+需要先安装依赖：libcurl-dev
+
 ```bash
+# Ubuntu/Debian
+sudo apt-get install libcurl4-openssl-dev
+
+# macOS
+brew install curl
+
 # 1. 启动 Elasticsearch
 docker-compose up -d elasticsearch
 
-# 2. 编译 C++ 项目
+# 2. 编译 C++ 项目（CMake 会自动下载 nlohmann/json）
 cd backend
 mkdir build && cd build
 cmake ..
@@ -47,16 +55,13 @@ make
 ### 访问地址
 
 - Elasticsearch: http://localhost:9200
-- Kibana: http://localhost:5601
+- Kibana: http://localhost:5601 （需使用 `--profile kibana` 启动）
 
-## 测试账号
+## 认证说明
 
-本项目为纯技术演示，无需登录认证。
+本项目为开发演示环境，已禁用安全认证（`xpack.security.enabled=false`），无需用户名密码即可访问。
 
-Elasticsearch 默认配置：
-
-- 用户名：elastic（如启用安全模式）
-- 密码：changeme（如启用安全模式）
+> ⚠️ 生产环境请务必启用安全认证。
 
 ## 题目内容
 
@@ -83,18 +88,20 @@ Elasticsearch 默认配置：
 ### 全文检索
 
 - ✅ Match 查询（分词匹配）
+- ✅ Multi-Match 查询（多字段搜索）
 - ✅ Term 查询（精确匹配）
 - ✅ Bool 组合查询
 - ✅ 高亮显示
 - ✅ 分页查询
-- ✅ 中文分词支持
+
+> 💡 本 Demo 使用 ES 内置的 `standard` 分词器。如需中文分词，可安装 IK 分词器插件并修改索引 mapping。
 
 ## 技术栈
 
 - **语言**: C++17
 - **HTTP 客户端**: libcurl
-- **JSON 处理**: nlohmann/json
-- **搜索引擎**: Elasticsearch 8.x
+- **JSON 处理**: nlohmann/json（CMake 自动下载）
+- **搜索引擎**: Elasticsearch 8.11.0
 - **构建工具**: CMake 3.16+
 - **容器化**: Docker & Docker Compose
 

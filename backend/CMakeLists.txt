@@ -14,6 +14,24 @@ endif()
 # 查找 libcurl
 find_package(CURL REQUIRED)
 
+# ==================== nlohmann/json 依赖 ====================
+# 自动下载 nlohmann/json 头文件（如果不存在）
+set(JSON_HPP_PATH "${CMAKE_SOURCE_DIR}/include/json.hpp")
+if(NOT EXISTS ${JSON_HPP_PATH})
+    message(STATUS "Downloading nlohmann/json...")
+    file(DOWNLOAD
+        "https://github.com/nlohmann/json/releases/download/v3.11.3/json.hpp"
+        ${JSON_HPP_PATH}
+        SHOW_PROGRESS
+        STATUS DOWNLOAD_STATUS
+    )
+    list(GET DOWNLOAD_STATUS 0 STATUS_CODE)
+    if(NOT STATUS_CODE EQUAL 0)
+        message(FATAL_ERROR "Failed to download nlohmann/json. Please download manually from https://github.com/nlohmann/json/releases")
+    endif()
+    message(STATUS "nlohmann/json downloaded successfully")
+endif()
+
 # 头文件目录
 include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(${CURL_INCLUDE_DIRS})
