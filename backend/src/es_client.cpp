@@ -90,6 +90,11 @@ bool ESClient::deleteIndex(const std::string& indexName) {
     log("Deleting index: " + indexName);
     auto response = httpClient_.del(buildUrl("/" + indexName));
     
+    if (response.isNotFound()) {
+        log("Index does not exist: " + indexName);
+        return true;
+    }
+    
     if (!response.isSuccess()) {
         throw ESException("Failed to delete index: " + response.body);
     }
@@ -122,11 +127,14 @@ DocResult ESClient::indexDocument(const std::string& indexName,
                                   const json& doc,
                                   const std::string& id) {
     std::string url = "/" + indexName + "/_doc";
-    if (!id.empty()) {
-        url += "/" + id;
-    }
+    HttpResponse response;
     
-    auto response = httpClient_.put(buildUrl(url), doc.dump());
+    if (id.empty()) {
+        response = httpClient_.post(buildUrl(url), doc.dump());
+    } else {
+        url += "/" + id;
+        response = httpClient_.put(buildUrl(url), doc.dump());
+    }
     
     DocResult result;
     if (response.isSuccess()) {
@@ -159,7 +167,7 @@ std::optional<json> ESClient::getDocument(const std::string& indexName,
     
     auto respJson = json::parse(response.body);
     if (respJson.value("found", false)) {
-        return respJson;
+        return respJson["_source"];
     }
     return std::nullopt;
 }
@@ -220,8 +228,7 @@ BulkResult ESClient::bulkIndex(const std::string& indexName,
         body << docs[i].dump() << "\n";
     }
     
-    std::map<std::string, std::string> headers = {{"Content-Type", "application/json"}};
-    auto response = httpClient_.post(buildUrl("/_bulk"), body.str(), headers);
+    auto response = httpClient_.post(buildUrl("/_bulk"), body.str());
     
     BulkResult result;
     if (response.isSuccess()) {
@@ -238,7 +245,7 @@ BulkResult ESClient::bulkIndex(const std::string& indexName,
             docResult.index = indexResult.value("_index", "");
             docResult.result = indexResult.value("result", "");
             docResult.version = indexResult.value("_version", 0);
-            docResult.success = indexResult.value("status", 500) > 300;
+            docResult.success = indexResult.value("status", 500) < 300;
             
             if (docResult.success) {
                 result.successCount++;
@@ -268,7 +275,8 @@ SearchResult ESClient::parseSearchResponse(const json& response) {
     result.total = total.is_object() ? total.value("value", 0) : total.get<int>();
     result.maxScore = hits.value("max_score", 0.0);
     
-    for (const auto& hit : hits) {
+    const auto& hitArray = hits["hits"];
+    for (const auto& hit : hitArray) {
         SearchHit searchHit;
         searchHit.id = hit.value("_id", "");
         searchHit.index = hit.value("_index", "");
