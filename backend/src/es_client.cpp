@@ -90,7 +90,7 @@ bool ESClient::deleteIndex(const std::string& indexName) {
     log("Deleting index: " + indexName);
     auto response = httpClient_.del(buildUrl("/" + indexName));
     
-    if (!response.isSuccess() && !response.isNotFound()) {
+    if (!response.isSuccess()) {
         throw ESException("Failed to delete index: " + response.body);
     }
     
@@ -126,7 +126,7 @@ DocResult ESClient::indexDocument(const std::string& indexName,
         url += "/" + id;
     }
     
-    auto response = httpClient_.post(buildUrl(url), doc.dump());
+    auto response = httpClient_.put(buildUrl(url), doc.dump());
     
     DocResult result;
     if (response.isSuccess()) {
@@ -159,7 +159,7 @@ std::optional<json> ESClient::getDocument(const std::string& indexName,
     
     auto respJson = json::parse(response.body);
     if (respJson.value("found", false)) {
-        return respJson["_source"];
+        return respJson;
     }
     return std::nullopt;
 }
@@ -220,7 +220,8 @@ BulkResult ESClient::bulkIndex(const std::string& indexName,
         body << docs[i].dump() << "\n";
     }
     
-    auto response = httpClient_.post(buildUrl("/_bulk"), body.str());
+    std::map<std::string, std::string> headers = {{"Content-Type", "application/json"}};
+    auto response = httpClient_.post(buildUrl("/_bulk"), body.str(), headers);
     
     BulkResult result;
     if (response.isSuccess()) {
@@ -237,7 +238,7 @@ BulkResult ESClient::bulkIndex(const std::string& indexName,
             docResult.index = indexResult.value("_index", "");
             docResult.result = indexResult.value("result", "");
             docResult.version = indexResult.value("_version", 0);
-            docResult.success = indexResult.value("status", 500) < 300;
+            docResult.success = indexResult.value("status", 500) > 300;
             
             if (docResult.success) {
                 result.successCount++;
@@ -267,7 +268,7 @@ SearchResult ESClient::parseSearchResponse(const json& response) {
     result.total = total.is_object() ? total.value("value", 0) : total.get<int>();
     result.maxScore = hits.value("max_score", 0.0);
     
-    for (const auto& hit : hits["hits"]) {
+    for (const auto& hit : hits) {
         SearchHit searchHit;
         searchHit.id = hit.value("_id", "");
         searchHit.index = hit.value("_index", "");
