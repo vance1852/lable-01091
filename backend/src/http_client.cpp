@@ -179,6 +179,7 @@ HttpResponse HttpClient::put(const std::string& url,
     curl_easy_setopt(pImpl->curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(pImpl->curl, CURLOPT_CUSTOMREQUEST, "PUT");
     curl_easy_setopt(pImpl->curl, CURLOPT_POSTFIELDS, body.c_str());
+    curl_easy_setopt(pImpl->curl, CURLOPT_POSTFIELDSIZE, static_cast<long>(body.size()));
     curl_easy_setopt(pImpl->curl, CURLOPT_WRITEFUNCTION, WriteCallback);
     curl_easy_setopt(pImpl->curl, CURLOPT_WRITEDATA, &responseBody);
     curl_easy_setopt(pImpl->curl, CURLOPT_HEADERFUNCTION, HeaderCallback);
@@ -195,6 +196,8 @@ HttpResponse HttpClient::put(const std::string& url,
     curl_easy_setopt(pImpl->curl, CURLOPT_HTTPHEADER, headerList);
     
     CURLcode res = curl_easy_perform(pImpl->curl);
+    
+    curl_slist_free_all(headerList);
     
     if (res != CURLE_OK) {
         throw HttpException(std::string("PUT request failed: ") + curl_easy_strerror(res));
